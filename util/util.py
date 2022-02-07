@@ -8,6 +8,7 @@ import importlib
 import argparse
 from argparse import Namespace
 import torchvision
+from math import ceil
 
 
 def str2bool(v):
@@ -164,3 +165,16 @@ def correct_resize(t, size, mode=Image.BICUBIC):
         resized_t = torchvision.transforms.functional.to_tensor(one_image) * 2 - 1.0
         resized.append(resized_t)
     return torch.stack(resized, dim=0).to(device)
+
+def square_padding(img_size):
+    """
+    Returns:
+        padding to make the image square as: (left, top, right, bot)
+    """
+    w, h = img_size
+    square_side = max(h,w)
+    
+    return ((square_side - w) //2,
+        (square_side - h)//2,
+        int(ceil((square_side - w) /2.0)),
+        int(ceil((square_side - h) /2.0)))

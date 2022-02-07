@@ -4,6 +4,7 @@ from data.image_folder import make_dataset
 from PIL import Image
 import random
 import util.util as util
+import torchvision.transforms as transforms
 
 
 class UnalignedDataset(BaseDataset):
@@ -57,6 +58,7 @@ class UnalignedDataset(BaseDataset):
         B_path = self.B_paths[index_B]
         A_img = Image.open(A_path).convert('RGB')
         B_img = Image.open(B_path).convert('RGB')
+        B_img = transforms.functional.pad(B_img, util.square_padding(B_img.size))
 
         # Apply image transformation
         # For FastCUT mode, if in finetuning phase (learning rate is decaying),
