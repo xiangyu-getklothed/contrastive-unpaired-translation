@@ -5,6 +5,7 @@ from PIL import Image
 import random
 import util.util as util
 import torchvision.transforms as transforms
+import torch
 
 
 class UnalignedDataset(BaseDataset):
@@ -67,10 +68,15 @@ class UnalignedDataset(BaseDataset):
         is_finetuning = self.opt.isTrain and self.current_epoch > self.opt.n_epochs
         modified_opt = util.copyconf(self.opt, load_size=self.opt.crop_size if is_finetuning else self.opt.load_size)
         transform = get_transform(modified_opt)
+        segmentation_transform = get_transform(modified_opt, segmentation=True)
         A = transform(A_img)
         B = transform(B_img)
 
-        return {'A': A, 'B': B, 'A_paths': A_path, 'B_paths': B_path}
+        A_segmentation_input = segmentation_transform(A_img)
+        B_segmentation_input = segmentation_transform(B_img)
+        return {'A': A, 'B': B, 'A_paths': A_path, 'B_paths': B_path, \
+        'A_segmentation_input': A_segmentation_input, \
+        'B_segmentation_input': B_segmentation_input}
 
     def __len__(self):
         """Return the total number of images in the dataset.

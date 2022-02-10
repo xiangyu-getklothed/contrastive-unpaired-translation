@@ -91,6 +91,11 @@ class CUTModel(BaseModel):
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
 
+        torch.hub._validate_not_a_forked_repo=lambda a,b,c: True
+        self.segmentation_model = torch.hub.load('pytorch/vision:v0.9.0', 'deeplabv3_resnet101', pretrained=True)
+        self.segmentation_model = self.segmentation_model.to('cuda')
+        self.segmentation_model.eval()
+
     def data_dependent_initialize(self, data):
         """
         The feature network netF is defined in terms of the shape of the intermediate, extracted
@@ -142,6 +147,24 @@ class CUTModel(BaseModel):
         self.real_A = input['A' if AtoB else 'B'].to(self.device)
         self.real_B = input['B' if AtoB else 'A'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
+
+        A_segmentation_input = input['A_segmentation_input'].to(self.device)
+        if len(A_segmentation_input.shape) == 3:
+            A_segmentation_input = torch.unsqueeze(A_segmentation_input, 0)
+        with torch.no_grad():
+            A_output = self.segmentation_model(A_segmentation_input)['out'][0]
+        A_person_mask = (A_output.argmax(0) == 15).type(torch.float) 
+        A_person_mask = A_person_mask.to(self.device)
+        self.real_A = self.real_A * A_person_mask  - (1 - A_person_mask)
+
+        B_segmentation_input = input['B_segmentation_input'].to(self.device)
+        if len(B_segmentation_input.shape) == 3:
+            B_segmentation_input = torch.unsqueeze(B_segmentation_input, 0)
+        with torch.no_grad():
+            B_output = self.segmentation_model(B_segmentation_input)['out'][0]
+        B_person_mask = (B_output.argmax(0) == 15).type(torch.float) 
+        B_person_mask = B_person_mask.to(self.device)
+        self.real_B = self.real_B * B_person_mask  - (1 - B_person_mask)
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
