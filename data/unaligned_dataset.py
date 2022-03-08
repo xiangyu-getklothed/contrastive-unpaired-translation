@@ -26,8 +26,8 @@ class UnalignedDataset(BaseDataset):
             opt (Option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions
         """
         BaseDataset.__init__(self, opt)
-        self.dir_A = os.path.join(opt.dataroot, opt.phase + 'A')  # create a path '/path/to/data/trainA'
-        self.dir_B = os.path.join(opt.dataroot, opt.phase + 'B')  # create a path '/path/to/data/trainB'
+        self.dir_A = os.path.join(opt.dataroot, opt.phase + 'A_sel')  # create a path '/path/to/data/trainA'
+        self.dir_B = os.path.join(opt.dataroot, opt.phase + 'B_sel')  # create a path '/path/to/data/trainB'
 
         if opt.phase == "test" and not os.path.exists(self.dir_A) \
            and os.path.exists(os.path.join(opt.dataroot, "valA")):
@@ -68,15 +68,16 @@ class UnalignedDataset(BaseDataset):
         is_finetuning = self.opt.isTrain and self.current_epoch > self.opt.n_epochs
         modified_opt = util.copyconf(self.opt, load_size=self.opt.crop_size if is_finetuning else self.opt.load_size)
         transform = get_transform(modified_opt)
-        segmentation_transform = get_transform(modified_opt, segmentation=True)
+        # segmentation_transform = get_transform(modified_opt, segmentation=True)
         A = transform(A_img)
         B = transform(B_img)
 
-        A_segmentation_input = segmentation_transform(A_img)
-        B_segmentation_input = segmentation_transform(B_img)
+        # A_segmentation_input = segmentation_transform(A_img)
+        # B_segmentation_input = segmentation_transform(B_img)
         return {'A': A, 'B': B, 'A_paths': A_path, 'B_paths': B_path, \
-        'A_segmentation_input': A_segmentation_input, \
-        'B_segmentation_input': B_segmentation_input}
+        # 'A_segmentation_input': A_segmentation_input, \
+        # 'B_segmentation_input': B_segmentation_input
+        }
 
     def __len__(self):
         """Return the total number of images in the dataset.
