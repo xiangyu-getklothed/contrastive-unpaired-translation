@@ -58,7 +58,7 @@ class CUTModel(BaseModel):
 
         # specify the training losses you want to print out.
         # The training/test scripts will call <BaseModel.get_current_losses>
-        self.loss_names = ['G_GAN', 'D_real', 'D_fake', 'G', 'NCE']
+        self.loss_names = ['G_GAN', 'D_real', 'D_fake', 'G', 'NCE_A', 'NCE_B']
         self.visual_names = ['real_A', 'fake_B', 'real_B']
         self.nce_layers = [int(i) for i in self.opt.nce_layers.split(',')]
 
@@ -91,10 +91,10 @@ class CUTModel(BaseModel):
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
 
-        torch.hub._validate_not_a_forked_repo=lambda a,b,c: True
-        self.segmentation_model = torch.hub.load('pytorch/vision:v0.9.0', 'deeplabv3_resnet101', pretrained=True)
-        self.segmentation_model = self.segmentation_model.to('cuda')
-        self.segmentation_model.eval()
+        # torch.hub._validate_not_a_forked_repo=lambda a,b,c: True
+        # self.segmentation_model = torch.hub.load('pytorch/vision:v0.9.0', 'deeplabv3_resnet101', pretrained=True)
+        # self.segmentation_model = self.segmentation_model.to('cuda')
+        # self.segmentation_model.eval()
 
     def data_dependent_initialize(self, data):
         """
@@ -148,23 +148,23 @@ class CUTModel(BaseModel):
         self.real_B = input['B' if AtoB else 'A'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
-        A_segmentation_input = input['A_segmentation_input'].to(self.device)
-        if len(A_segmentation_input.shape) == 3:
-            A_segmentation_input = torch.unsqueeze(A_segmentation_input, 0)
-        with torch.no_grad():
-            A_output = self.segmentation_model(A_segmentation_input)['out'][0]
-        A_person_mask = (A_output.argmax(0) == 15).type(torch.float) 
-        A_person_mask = A_person_mask.to(self.device)
-        self.real_A = self.real_A * A_person_mask  - (1 - A_person_mask)
+        # A_segmentation_input = input['A_segmentation_input'].to(self.device)
+        # if len(A_segmentation_input.shape) == 3:
+        #     A_segmentation_input = torch.unsqueeze(A_segmentation_input, 0)
+        # with torch.no_grad():
+        #     A_output = self.segmentation_model(A_segmentation_input)['out'][0]
+        # A_person_mask = (A_output.argmax(0) == 15).type(torch.float) 
+        # A_person_mask = A_person_mask.to(self.device)
+        # self.real_A = self.real_A * A_person_mask  - (1 - A_person_mask)
 
-        B_segmentation_input = input['B_segmentation_input'].to(self.device)
-        if len(B_segmentation_input.shape) == 3:
-            B_segmentation_input = torch.unsqueeze(B_segmentation_input, 0)
-        with torch.no_grad():
-            B_output = self.segmentation_model(B_segmentation_input)['out'][0]
-        B_person_mask = (B_output.argmax(0) == 15).type(torch.float) 
-        B_person_mask = B_person_mask.to(self.device)
-        self.real_B = self.real_B * B_person_mask  - (1 - B_person_mask)
+        # B_segmentation_input = input['B_segmentation_input'].to(self.device)
+        # if len(B_segmentation_input.shape) == 3:
+        #     B_segmentation_input = torch.unsqueeze(B_segmentation_input, 0)
+        # with torch.no_grad():
+        #     B_output = self.segmentation_model(B_segmentation_input)['out'][0]
+        # B_person_mask = (B_output.argmax(0) == 15).type(torch.float) 
+        # B_person_mask = B_person_mask.to(self.device)
+        # self.real_B = self.real_B * B_person_mask  - (1 - B_person_mask)
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
@@ -205,13 +205,14 @@ class CUTModel(BaseModel):
             self.loss_G_GAN = 0.0
 
         if self.opt.lambda_NCE > 0.0:
-            self.loss_NCE = self.calculate_NCE_loss(self.real_A, self.fake_B)
+            self.loss_NCE_A = self.calculate_NCE_loss(self.real_A, self.fake_B)
+            self.loss_NCE_B = self.calculate_NCE_loss(self.real_B, self.fake_B)
         else:
             self.loss_NCE, self.loss_NCE_bd = 0.0, 0.0
 
         if self.opt.nce_idt and self.opt.lambda_NCE > 0.0:
             self.loss_NCE_Y = self.calculate_NCE_loss(self.real_B, self.idt_B)
-            loss_NCE_both = (self.loss_NCE + self.loss_NCE_Y) * 0.5
+            loss_NCE_both = (self.loss_NCE_A + self.loss_NCE_B + self.loss_NCE_Y) / 3.
         else:
             loss_NCE_both = self.loss_NCE
 
